@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Digital Watch — Clock / Stopwatch / Alarm</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:radial-gradient(ellipse at 50% 10%, #26272a 0%, #0c0c0d 70%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    font-family:'IBM Plex Mono','Courier New',monospace;
+    padding:40px 14px;
+  }
+  h1{
+    color:#e4e6e4;
+    font-size:18px;
+    letter-spacing:.5px;
+    margin:0 0 30px;
+  }
+
+  .watch{
+    position:relative;
+    width:300px;
+    height:400px;
+    margin:70px 0;
+  }
+
+  .band{
+    position:absolute; left:50%; transform:translateX(-50%);
+    width:150px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .band.top{ top:-70px; }
+  .band.bottom{ bottom:-70px; }
+  .band .link{
+    height:17px;
+    border-radius:3px;
+    background:linear-gradient(180deg,#3a3b3d 0%,#151516 45%,#020202 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 1px 2px rgba(0,0,0,.6);
+  }
+
+  .case{
+    position:absolute; top:44px; left:20px;
+    width:260px; height:300px;
+    border-radius:36px;
+    background:linear-gradient(150deg,#3d3e40 0%, #1c1c1d 30%, #050505 70%, #2a2b2c 100%);
+    box-shadow:0 24px 48px -18px rgba(0,0,0,.9), inset 0 1px 1px rgba(255,255,255,.12);
+    padding:18px;
+  }
+
+  .btn{
+    position:absolute;
+    width:14px;height:26px;
+    border-radius:4px;
+    background:linear-gradient(90deg,#2a2b2c,#0a0a0a);
+    box-shadow:0 1px 2px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.15);
+    cursor:pointer;
+    transition:transform .08s, background .08s;
+  }
+  .btn:active, .btn.pressed{ transform:scale(.88); background:linear-gradient(90deg,#1a1a1b,#000); }
+  .btn.mode{ top:137px; left:-8px; }
+  .btn.start{ top:78px; right:-8px; }
+  .btn.reset{ top:158px; right:-8px; }
+
+  .btn-tag{
+    position:absolute;
+    font-size:7.5px;
+    letter-spacing:1.5px;
+    color:#7a7d7a;
+    cursor:pointer;
+    user-select:none;
+  }
+  .btn-tag.mode{ top:165px; left:-38px; transform:rotate(-90deg); transform-origin:left center; }
+  .btn-tag.start{ top:84px; right:-40px; transform:rotate(90deg); transform-origin:right center; }
+  .btn-tag.reset{ top:186px; right:-40px; transform:rotate(90deg); transform-origin:right center; }
+
+  .screen{
+    width:100%; height:100%;
+    border-radius:24px;
+    background:#050605;
+    padding:5px;
+    box-shadow:inset 0 0 0 2px #000;
+  }
+  .lcd{
+    width:100%; height:100%;
+    border-radius:20px;
+    background:
+      radial-gradient(circle, rgba(255,255,255,.035) 1px, transparent 1.3px) 0 0/6px 6px,
+      linear-gradient(160deg,#1c1e1c 0%, #0c0d0c 60%, #050605 100%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:14px 10px 10px;
+    box-shadow:inset 0 2px 10px rgba(0,0,0,.7);
+    position:relative;
+  }
+
+  .brand{
+    font-size:11px;
+    letter-spacing:4px;
+    color:#8a8f8a;
+    margin-bottom:12px;
+  }
+
+  .tag-row{
+    display:flex; gap:10px;
+    font-size:8px;
+    letter-spacing:1px;
+    color:#4a4e4a;
+    margin-bottom:8px;
+  }
+  .tag-row span.active{ color:#e6e9e5; }
+
+  .time-row{ display:flex; align-items:center; gap:5px; margin-bottom:10px; }
+  .digit{ position:relative; width:34px; height:58px; }
+  .seg{ position:absolute; background:rgba(230,235,229,.06); transition:background .04s; }
+  .seg.on{ background:#e6e9e5; box-shadow:0 0 2px rgba(230,235,229,.25); }
+  .digit .seg-a,.digit .seg-d,.digit .seg-g{ left:6px; width:22px; height:6px; clip-path:polygon(10% 0,90% 0,100% 50%,90% 100%,10% 100%,0 50%); }
+  .digit .seg-a{top:0;} .digit .seg-g{top:26px;} .digit .seg-d{top:52px;}
+  .digit .seg-f,.digit .seg-b,.digit .seg-e,.digit .seg-c{ width:6px; height:21px; clip-path:polygon(0 12%,50% 0,100% 12%,100% 88%,50% 100%,0 88%); }
+  .digit .seg-f{top:3px; left:0;} .digit .seg-b{top:3px; right:0;}
+  .digit .seg-e{top:30px; left:0;} .digit .seg-c{top:30px; right:0;}
+
+  .colon{ display:flex; flex-direction:column; gap:9px; }
+  .colon i{ width:6px;height:6px;border-radius:50%; background:#e6e9e5; }
+  .colon i.blink{ animation:blink 1s infinite steps(1); }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .mode-label{
+    font-size:10px;
+    letter-spacing:2px;
+    color:#5a5e59;
+    margin-bottom:10px;
+  }
+  .mode-label.buzz{ color:#e08a4a; animation:blink .5s infinite steps(1); }
+
+  .bottom-bar{
+    margin-top:auto;
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:8px;
+    letter-spacing:1px;
+    color:#4a4e4a;
+    padding-top:10px;
+  }
+  .stripes{
+    flex:1;
+    height:12px;
+    margin:0 8px;
+    background:repeating-linear-gradient(115deg, #3a3d3a 0 2px, transparent 2px 6px);
+    opacity:.5;
+  }
+
+  footer{
+    margin-top:20px;
+    font-size:10px;
+    color:#5a5e5b;
+    text-align:center;
+    max-width:360px;
+    line-height:1.6;
+  }
+  footer code{ color:#8a8d8a; }
+
+  .alarm-set{
+    margin-top:22px;
+    display:none;
+    gap:20px;
+    padding:12px 18px;
+    border:1px solid #2c2d2e;
+    border-radius:10px;
+    background:rgba(255,255,255,.03);
+  }
+  .alarm-set.show{ display:flex; }
+  .alarm-adj{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .alarm-adj .lb{ font-size:9.5px; color:#8a8d8a; letter-spacing:1px; }
+  .alarm-adj .row{ display:flex; gap:8px; }
+  .alarm-adj button{
+    width:26px;height:26px;border-radius:50%;
+    border:1px solid #3a3b3c;
+    background:#1a1a1b; color:#cfd3d1; cursor:pointer; font-size:13px;
+  }
+
+  .hint-row{
+    margin-top:22px;
+    display:flex; gap:8px; flex-wrap:wrap;
+    justify-content:center;
+    max-width:340px;
+  }
+  .hint{
+    font-size:9px;
+    color:#8a8d8a;
+    border:1px solid #2c2d2e;
+    border-radius:6px;
+    padding:4px 8px;
+  }
+  .hint b{ color:#d3dad3; }
+</style>
+</head>
+<body>
+
+<h1>Digital Watch</h1>
+
+<div class="watch">
+  <div class="band top"><div class="link"></div><div class="link"></div><div class="link"></div></div>
+  <div class="band bottom"><div class="link"></div><div class="link"></div><div class="link"></div></div>
+
+  <div class="case">
+    <div class="btn mode" id="btnMode"></div>
+    <div class="btn-tag mode">MODE</div>
+
+    <div class="btn start" id="btnStartStop"></div>
+    <div class="btn-tag start">START</div>
+
+    <div class="btn reset" id="btnReset"></div>
+    <div class="btn-tag reset">RESET</div>
+
+    <div class="screen">
+      <div class="lcd" id="lcd">
+        <div class="brand">24H · DIGITAL</div>
+
+        <div class="tag-row">
+          <span id="tagAlm">ALM</span>
+          <span id="tagSnz">SNZ</span>
+          <span id="tagChm">CHM</span>
+        </div>
+
+        <div class="mode-label" id="modeLabel">CLOCK</div>
+
+        <div class="time-row">
+          <div class="digit" id="d0"></div>
+          <div class="digit" id="d1"></div>
+          <div class="colon"><i class="blink"></i><i class="blink"></i></div>
+          <div class="digit" id="d2"></div>
+          <div class="digit" id="d3"></div>
+        </div>
+
+        <div class="bottom-bar">
+          <span>2TIME</span>
+          <div class="stripes"></div>
+          <span>30M</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alarm-set" id="alarmSet">
+  <div class="alarm-adj">
+    <div class="lb">ALARM HOUR</div>
+    <div class="row"><button id="hDown">−</button><button id="hUp">+</button></div>
+  </div>
+  <div class="alarm-adj">
+    <div class="lb">ALARM MIN</div>
+    <div class="row"><button id="mDown">−</button><button id="mUp">+</button></div>
+  </div>
+</div>
+
+<div class="hint-row">
+  <div class="hint"><b>MODE</b> clock → stopwatch → alarm → clock</div>
+  <div class="hint"><b>START</b> runs/stops the stopwatch, or silences the alarm</div>
+  <div class="hint"><b>RESET</b> resets whichever mode is shown</div>
+</div>
+
+<footer>
+  Segment codes decoded from <code>module display</code> (active-low, A B C D E F G bit order).
+  Mode cycling, single-button start/stop, and reset behavior mirror <code>integration_of_digitital_watch</code>.
+  ALM/SNZ/CHM are decorative status indicators styled after the reference case.
+</footer>
+
+<script>
+const CODES = {0:0x03,1:0x9F,2:0x25,3:0x0D,4:0x99,5:0x49,6:0x41,7:0x1F,8:0x01,9:0x09};
+function segMap(v){
+  const b = CODES[v];
+  const on = p => !((b>>p)&1);
+  return { a:on(7), b:on(6), c:on(5), d:on(4), e:on(3), f:on(2), g:on(1) };
+}
+function buildDigit(el){
+  ['a','b','c','d','e','f','g'].forEach(s=>{
+    const d = document.createElement('div');
+    d.className = 'seg seg-'+s;
+    el.appendChild(d);
+  });
+}
+const digits = ['d0','d1','d2','d3'].map(id=>document.getElementById(id));
+digits.forEach(buildDigit);
+
+function renderDigit(el, value){
+  const segs = segMap(value);
+  ['a','b','c','d','e','f','g'].forEach(s=>{
+    el.querySelector('.seg-'+s).classList.toggle('on', !!segs[s]);
+  });
+}
+function twoDigits(n){ return [Math.floor(n/10)%10, n%10]; }
+
+// ---- state ----
+let mode = 0; // 0 clock, 1 stopwatch, 2 alarm-set
+let swMin=0, swSec=0, swRunning=false;
+let alarmH=7, alarmM=0;
+let buzzer=false, silencedThisMinute=false;
+let lastMin=-1, lastHr=-1;
+
+const modeLabel = document.getElementById('modeLabel');
+const alarmSetPanel = document.getElementById('alarmSet');
+const tagAlm = document.getElementById('tagAlm');
+const tagChm = document.getElementById('tagChm');
+const MODE_NAMES = ['CLOCK','STOPWATCH','ALARM SET'];
+
+function render(){
+  const now = new Date();
+  const hr = now.getHours(), min = now.getMinutes();
+
+  if(min!==lastMin || hr!==lastHr){
+    silencedThisMinute = false;
+    lastMin = min; lastHr = hr;
+  }
+
+  buzzer = (hr===alarmH && min===alarmM && !silencedThisMinute);
+
+  let vals;
+  if(mode===0){ vals = twoDigits(hr).concat(twoDigits(min)); }
+  else if(mode===1){ vals = twoDigits(swMin).concat(twoDigits(swSec)); }
+  else { vals = twoDigits(alarmH).concat(twoDigits(alarmM)); }
+
+  digits.forEach((el,i)=>renderDigit(el, vals[i]));
+
+  tagAlm.classList.toggle('active', mode===2 || buzzer);
+  tagChm.classList.toggle('active', mode===1 && swRunning);
+
+  modeLabel.textContent = buzzer ? 'ALARM!' : MODE_NAMES[mode];
+  modeLabel.classList.toggle('buzz', buzzer);
+  alarmSetPanel.classList.toggle('show', mode===2);
+}
+
+let prevSec = new Date().getSeconds();
+setInterval(()=>{
+  const now = new Date();
+  const s = now.getSeconds();
+  if(s !== prevSec){
+    prevSec = s;
+    if(swRunning){
+      swSec++;
+      if(swSec>=60){ swSec=0; swMin=(swMin+1)%60; }
+    }
+  }
+  render();
+}, 250);
+
+function flash(el){ el.classList.add('pressed'); setTimeout(()=>el.classList.remove('pressed'),120); }
+
+document.getElementById('btnMode').addEventListener('click', e=>{
+  flash(e.currentTarget);
+  mode = (mode+1)%3;
+  render();
+});
+document.querySelector('.btn-tag.mode').addEventListener('click', ()=>{
+  document.getElementById('btnMode').click();
+});
+
+document.getElementById('btnStartStop').addEventListener('click', e=>{
+  flash(e.currentTarget);
+  if(mode===1){ swRunning = !swRunning; }
+  else { buzzer=false; silencedThisMinute=true; }
+  render();
+});
+document.querySelector('.btn-tag.start').addEventListener('click', ()=>{
+  document.getElementById('btnStartStop').click();
+});
+
+document.getElementById('btnReset').addEventListener('click', e=>{
+  flash(e.currentTarget);
+  if(mode===1){ swMin=0; swSec=0; swRunning=false; }
+  else { buzzer=false; silencedThisMinute=true; }
+  render();
+});
+document.querySelector('.btn-tag.reset').addEventListener('click', ()=>{
+  document.getElementById('btnReset').click();
+});
+
+document.getElementById('hUp').addEventListener('click', ()=>{ alarmH=(alarmH+1)%24; render(); });
+document.getElementById('hDown').addEventListener('click', ()=>{ alarmH=(alarmH+23)%24; render(); });
+document.getElementById('mUp').addEventListener('click', ()=>{ alarmM=(alarmM+1)%60; render(); });
+document.getElementById('mDown').addEventListener('click', ()=>{ alarmM=(alarmM+59)%60; render(); });
+
+render();
+</script>
+</body>
+</html>
